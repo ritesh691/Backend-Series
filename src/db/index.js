@@ -1,3 +1,4 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
 
 import { DB_NAME } from "../constants.js";
@@ -19,15 +20,33 @@ const connectDB = async () => {
       );
     }
 
+    const dnsServers = process.env.MONGODB_DNS_SERVERS?.split(",")
+      .map((server) => server.trim())
+      .filter(Boolean);
+
+    if (dnsServers?.length) {
+      dns.setServers(dnsServers);
+    }
+
     const connectionInstance = await mongoose.connect(mongoUri, {
-      dbName: DB_NAME,
+      dbName: process.env.DB_NAME || DB_NAME,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      family: 4,
     });
 
     console.log(
       `\n MongoDB connected !! DB HOST: ${connectionInstance.connection.host} \n`
     );
   } catch (error) {
-    console.error("MONGODB connection failed:", error.message);
+    const message =
+      error.code === "ETIMEOUT" && error.syscall === "querySrv"
+        ? `${error.message}. Set MONGODB_DNS_SERVERS=1.1.1.1,8.8.8.8 or check your DNS/VPN settings.`
+        : error.message.includes("tlsv1 alert internal error")
+          ? `${error.message}. Check that this machine's IP is allowed in MongoDB Atlas Network Access and that the Atlas credentials are correct.`
+        : error.message;
+
+    console.error("MONGODB connection failed:", message);
     process.exit(1);
   }
 };
