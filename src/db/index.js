@@ -42,9 +42,10 @@ const connectDB = async () => {
     const message =
       error.code === "ETIMEOUT" && error.syscall === "querySrv"
         ? `${error.message}. Set MONGODB_DNS_SERVERS=1.1.1.1,8.8.8.8 or check your DNS/VPN settings.`
-        : error.message.includes("tlsv1 alert internal error")
-          ? `${error.message}. Check that this machine's IP is allowed in MongoDB Atlas Network Access and that the Atlas credentials are correct.`
-        : error.message;
+        : error.message.includes("tlsv1 alert internal error") ||
+            error.message.includes("SSL alert number 80")
+          ? `${error.message}. MongoDB Atlas rejected the TLS connection. Add this machine's public IP to Atlas Network Access and verify the username, password, and URL-encoded password in MONGODB_URI.`
+          : error.message;
 
     console.error("MONGODB connection failed:", message);
     process.exit(1);
